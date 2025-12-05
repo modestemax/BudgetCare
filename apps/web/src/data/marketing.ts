@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { HeartHandshake, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
 
 export interface ImpactMetric {
   id: string;
