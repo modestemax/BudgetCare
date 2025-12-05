@@ -1,18 +1,25 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import {
   Activity,
   ArrowRight,
+  Check,
   ClipboardList,
+  Info,
+  Pencil,
+  Plus,
   RefreshCw,
   Target,
+  Trash2,
   Wallet,
+  X,
 } from "lucide-react";
 import {
   budgetPlans,
+  createEditableCategories,
   executionEntries,
   planRevisions,
 } from "../data/budgetPlans";
-import type { BudgetPlan } from "../types/entities";
+import type { BudgetPlan, BudgetPlanCategory } from "../types/entities";
 
 const statusTokens: Record<
   BudgetPlan["status"],
@@ -29,12 +36,273 @@ const riskTokens = {
   high: "bg-rose-100 text-rose-800",
 };
 
-const formatCurrency = (value: number, currency: string) =>
-  `${value.toLocaleString("fr-FR")} ${currency}`;
+const defaultAddForm = {
+  label: "",
+  owner: "",
+  allocated: "",
+  utilized: "",
+  notes: "",
+};
+
+type AddFormState = typeof defaultAddForm;
+
+type Feedback =
+  | {
+      type: "success" | "error";
+      message: string;
+    }
+  | null;
+
+type EditingDraft = {
+  id: string;
+  label: string;
+  owner: string;
+  allocated: string;
+  utilized: string;
+  notes: string;
+};
+
+type EditorState = {
+  planId: string;
+  categories: BudgetPlanCategory[];
+  editingDraft: EditingDraft | null;
+  showAddForm: boolean;
+  addForm: AddFormState;
+  feedback: Feedback;
+};
+
+type EditorAction =
+  | { type: "hydrate"; planId: string; categories: BudgetPlanCategory[] }
+  | { type: "toggleAddForm"; open?: boolean }
+  | { type: "updateAddForm"; field: keyof AddFormState; value: string }
+  | { type: "addCategory" }
+  | { type: "startEdit"; categoryId: string }
+  | { type: "cancelEdit" }
+  | { type: "updateEditingField"; field: keyof EditingDraft; value: string }
+  | { type: "saveEdit" }
+  | { type: "deleteCategory"; categoryId: string }
+  | { type: "clearFeedback" };
+
+function buildInitialEditorState(initialPlanId: string): EditorState {
+  return {
+    planId: initialPlanId,
+    categories: initialPlanId ? createEditableCategories(initialPlanId) : [],
+    editingDraft: null,
+    showAddForm: false,
+    addForm: defaultAddForm,
+    feedback: null,
+  };
+}
+
+function editorReducer(state: EditorState, action: EditorAction): EditorState {
+  switch (action.type) {
+    case "hydrate":
+      return {
+        ...state,
+        planId: action.planId,
+        categories: action.categories,
+        editingDraft: null,
+        showAddForm: false,
+        addForm: defaultAddForm,
+        feedback: null,
+      };
+    case "toggleAddForm":
+      return {
+        ...state,
+        showAddForm: action.open ?? !state.showAddForm,
+        addForm: action.open === false ? defaultAddForm : state.addForm,
+        feedback: null,
+      };
+    case "updateAddForm":
+      return {
+        ...state,
+        addForm: { ...state.addForm, [action.field]: action.value },
+      };
+    case "addCategory": {
+      const allocated = parseAmount(state.addForm.allocated);
+      const utilized =
+        state.addForm.utilized.trim() === ""
+          ? 0
+          : parseAmount(state.addForm.utilized);
+      const errors = validateCategoryPayload({
+        label: state.addForm.label,
+        owner: state.addForm.owner,
+        allocated,
+        utilized,
+      });
+
+      if (errors.length) {
+        return {
+          ...state,
+          feedback: { type: "error", message: errors.join(" ") },
+        };
+      }
+
+      const newCategory: BudgetPlanCategory = {
+        id: `cat-${Date.now()}`,
+        label: state.addForm.label.trim(),
+        owner: state.addForm.owner.trim(),
+        allocated,
+        utilized,
+        notes: sanitizeNotes(state.addForm.notes),
+      };
+
+      return {
+        ...state,
+        categories: [...state.categories, newCategory],
+        addForm: defaultAddForm,
+        showAddForm: false,
+        feedback: { type: "success", message: "Ligne budgétaire ajoutée." },
+      };
+    }
+    case "startEdit": {
+      const target = state.categories.find(
+        (category) => category.id === action.categoryId
+      );
+      if (!target) {
+        return state;
+      }
+      return {
+        ...state,
+        editingDraft: convertCategoryToDraft(target),
+        feedback: null,
+      };
+    }
+    case "cancelEdit":
+      return { ...state, editingDraft: null };
+    case "updateEditingField":
+      if (!state.editingDraft) {
+        return state;
+      }
+      return {
+        ...state,
+        editingDraft: {
+          ...state.editingDraft,
+          [action.field]: action.value,
+        },
+      };
+    case "saveEdit":
+      if (!state.editingDraft) {
+        return state;
+      }
+      const parsed = convertDraftToCategory(state.editingDraft);
+      const errors = validateCategoryPayload({
+        label: parsed.label,
+        owner: parsed.owner,
+        allocated: parsed.allocated,
+        utilized: parsed.utilized,
+      });
+      if (errors.length) {
+        return {
+          ...state,
+          feedback: { type: "error", message: errors.join(" ") },
+        };
+      }
+      return {
+        ...state,
+        categories: state.categories.map((category) =>
+          category.id === parsed.id ? parsed : category
+        ),
+        editingDraft: null,
+        feedback: { type: "success", message: "Ligne mise à jour." },
+      };
+    case "deleteCategory":
+      return {
+        ...state,
+        categories: state.categories.filter(
+          (category) => category.id !== action.categoryId
+        ),
+        editingDraft:
+          state.editingDraft?.id === action.categoryId
+            ? null
+            : state.editingDraft,
+        feedback: { type: "success", message: "Ligne supprimée." },
+      };
+    case "clearFeedback":
+      return { ...state, feedback: null };
+    default:
+      return state;
+  }
+}
+
+function parseAmount(value: string) {
+  if (value.trim() === "") {
+    return NaN;
+  }
+  return Number(value.replace(/\s/g, ""));
+}
+
+function sanitizeNotes(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+}
+
+function validateCategoryPayload(params: {
+  label: string;
+  owner: string;
+  allocated: number;
+  utilized: number;
+}) {
+  const errors: string[] = [];
+  if (!params.label.trim()) {
+    errors.push("Le nom de la catégorie est requis.");
+  }
+  if (!params.owner.trim()) {
+    errors.push("Merci d indiquer un responsable.");
+  }
+  if (!Number.isFinite(params.allocated) || params.allocated <= 0) {
+    errors.push("Le montant alloué doit être supérieur à 0.");
+  }
+  if (!Number.isFinite(params.utilized) || params.utilized < 0) {
+    errors.push("Le montant utilisé doit être positif.");
+  }
+  if (
+    Number.isFinite(params.allocated) &&
+    Number.isFinite(params.utilized) &&
+    params.utilized > params.allocated
+  ) {
+    errors.push("Le montant utilisé ne peut pas dépasser l allocation.");
+  }
+  return errors;
+}
+
+function convertCategoryToDraft(category: BudgetPlanCategory): EditingDraft {
+  return {
+    id: category.id,
+    label: category.label,
+    owner: category.owner,
+    allocated: category.allocated.toString(),
+    utilized: category.utilized.toString(),
+    notes: category.notes ?? "",
+  };
+}
+
+function convertDraftToCategory(draft: EditingDraft): BudgetPlanCategory {
+  return {
+    id: draft.id,
+    label: draft.label.trim(),
+    owner: draft.owner.trim(),
+    allocated: parseAmount(draft.allocated),
+    utilized:
+      draft.utilized.trim() === "" ? 0 : parseAmount(draft.utilized.trim()),
+    notes: sanitizeNotes(draft.notes),
+  };
+}
+
+function calculatePercentage(utilized: number, allocated: number) {
+  if (!allocated || !Number.isFinite(utilized) || !Number.isFinite(allocated)) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, Math.round((utilized / allocated) * 100)));
+}
 
 export default function BudgetManagementPage() {
-  const [selectedPlanId, setSelectedPlanId] = useState(
-    budgetPlans[0]?.id ?? ""
+  const initialPlanId = budgetPlans[0]?.id ?? "";
+  const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
+  const [editorState, dispatch] = useReducer(
+    editorReducer,
+    initialPlanId,
+    (planId) => buildInitialEditorState(planId)
   );
 
   const activePlan =
@@ -42,6 +310,27 @@ export default function BudgetManagementPage() {
       () => budgetPlans.find((plan) => plan.id === selectedPlanId),
       [selectedPlanId]
     ) ?? budgetPlans[0];
+
+  useEffect(() => {
+    if (!activePlan) {
+      return;
+    }
+    dispatch({
+      type: "hydrate",
+      planId: activePlan.id,
+      categories: createEditableCategories(activePlan.id),
+    });
+  }, [activePlan?.id]);
+
+  useEffect(() => {
+    if (!editorState.feedback) {
+      return;
+    }
+    const timeout = setTimeout(() => {
+      dispatch({ type: "clearFeedback" });
+    }, 3200);
+    return () => clearTimeout(timeout);
+  }, [editorState.feedback]);
 
   const revisions = useMemo(
     () => planRevisions.filter((rev) => rev.planId === activePlan.id),
@@ -53,7 +342,12 @@ export default function BudgetManagementPage() {
     [activePlan.id]
   );
 
-  const totalUtilized = activePlan.categories.reduce(
+  const categories =
+    editorState.planId === activePlan.id
+      ? editorState.categories
+      : createEditableCategories(activePlan.id);
+
+  const totalUtilized = categories.reduce(
     (sum, category) => sum + category.utilized,
     0
   );
@@ -61,6 +355,21 @@ export default function BudgetManagementPage() {
     ? totalUtilized / activePlan.totalBudget
     : 0;
   const reserve = Math.max(activePlan.totalBudget - totalUtilized, 0);
+  const isDraftPlan = activePlan.status === "draft";
+  const editingPercent = editorState.editingDraft
+    ? calculatePercentage(
+        editorState.editingDraft.utilized.trim()
+          ? parseAmount(editorState.editingDraft.utilized)
+          : 0,
+        parseAmount(editorState.editingDraft.allocated)
+      )
+    : 0;
+  const addPercent = calculatePercentage(
+    editorState.addForm.utilized.trim()
+      ? parseAmount(editorState.addForm.utilized)
+      : 0,
+    parseAmount(editorState.addForm.allocated)
+  );
 
   return (
     <div className="min-h-screen bg-mist py-10">
@@ -71,9 +380,7 @@ export default function BudgetManagementPage() {
               <p className="text-sm uppercase tracking-[0.3em] text-white/80">
                 Gestion des budgets
               </p>
-              <h1 className="font-display text-4xl">
-                {activePlan.name}
-              </h1>
+              <h1 className="font-display text-4xl">{activePlan.name}</h1>
               <p className="text-white/80">
                 Pilotez vos plans financiers, documentez les ajustements et
                 suivez l'exécution terrain en temps réel.
@@ -103,7 +410,7 @@ export default function BudgetManagementPage() {
                   </option>
                 ))}
               </select>
-              <div className="mt-4 flex items-center gap-2 text-xs">
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
                 <span
                   className={`rounded-full px-3 py-1 font-semibold ${statusTokens[activePlan.status].classes}`}
                 >
@@ -126,7 +433,11 @@ export default function BudgetManagementPage() {
               </p>
             </div>
             <p className="mt-3 font-display text-3xl text-ocean">
-              {formatCurrency(activePlan.totalBudget, activePlan.currency)}
+              {activePlan
+                ? `${activePlan.totalBudget.toLocaleString("fr-FR")} ${
+                    activePlan.currency
+                  }`
+                : "-"}
             </p>
             <div className="mt-4">
               <p className="text-xs uppercase text-charcoal/50">
@@ -140,7 +451,7 @@ export default function BudgetManagementPage() {
               </div>
               <p className="mt-2 text-sm text-charcoal/70">
                 {Math.round(utilizationRate * 100)}% utilisé |{" "}
-                {formatCurrency(totalUtilized, activePlan.currency)}
+                {totalUtilized.toLocaleString("fr-FR")} {activePlan.currency}
               </p>
             </div>
           </article>
@@ -170,10 +481,10 @@ export default function BudgetManagementPage() {
               </p>
             </div>
             <p className="mt-3 font-display text-3xl text-ocean">
-              {formatCurrency(reserve, activePlan.currency)}
+              {reserve.toLocaleString("fr-FR")} {activePlan.currency}
             </p>
             <p className="mt-2 text-sm text-charcoal/70">
-              Permet de financer {reserve > 0 ? "2 mois" : "0 mois"} de charges
+              Permet de financer {reserve > 0 ? "≈2 mois" : "0 mois"} de charges
               critiques en cas de risque.
             </p>
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-mist/60 px-3 py-1 text-xs text-charcoal/70">
@@ -196,11 +507,147 @@ export default function BudgetManagementPage() {
                 </h2>
               </div>
             </div>
-            <p className="text-sm text-charcoal/60">
-              Ventilation {activePlan.fiscalPeriod.start} —{" "}
-              {activePlan.fiscalPeriod.end}
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              {isDraftPlan ? (
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: "toggleAddForm" })}
+                  className="inline-flex items-center gap-2 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-ocean"
+                >
+                  <Plus className="h-4 w-4" />
+                  Ajouter une ligne
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 rounded-full bg-mist/60 px-4 py-2 text-xs font-medium text-charcoal/70">
+                  <Info className="h-4 w-4 text-teal" />
+                  Édition disponible uniquement pour un plan brouillon.
+                </div>
+              )}
+              <p className="text-sm text-charcoal/60">
+                Ventilation {activePlan.fiscalPeriod.start} —{" "}
+                {activePlan.fiscalPeriod.end}
+              </p>
+            </div>
           </div>
+
+          {editorState.feedback && (
+            <div
+              className={`mt-4 rounded-2xl border px-4 py-2 text-sm ${
+                editorState.feedback.type === "error"
+                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
+              }`}
+            >
+              {editorState.feedback.message}
+            </div>
+          )}
+
+          {editorState.showAddForm && isDraftPlan && (
+            <div className="mt-5 rounded-3xl border border-dashed border-teal bg-mist/40 p-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="text-sm font-semibold text-charcoal">
+                  Intitulé
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-mist px-3 py-2 text-sm"
+                    value={editorState.addForm.label}
+                    onChange={(event) =>
+                      dispatch({
+                        type: "updateAddForm",
+                        field: "label",
+                        value: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+                <label className="text-sm font-semibold text-charcoal">
+                  Responsable
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-mist px-3 py-2 text-sm"
+                    value={editorState.addForm.owner}
+                    onChange={(event) =>
+                      dispatch({
+                        type: "updateAddForm",
+                        field: "owner",
+                        value: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+                <label className="text-sm font-semibold text-charcoal">
+                  Montant alloué
+                  <input
+                    type="number"
+                    min={0}
+                    className="mt-2 w-full rounded-2xl border border-mist px-3 py-2 text-sm"
+                    value={editorState.addForm.allocated}
+                    onChange={(event) =>
+                      dispatch({
+                        type: "updateAddForm",
+                        field: "allocated",
+                        value: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+                <label className="text-sm font-semibold text-charcoal">
+                  Montant utilisé
+                  <input
+                    type="number"
+                    min={0}
+                    className="mt-2 w-full rounded-2xl border border-mist px-3 py-2 text-sm"
+                    value={editorState.addForm.utilized}
+                    onChange={(event) =>
+                      dispatch({
+                        type: "updateAddForm",
+                        field: "utilized",
+                        value: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+                <label className="text-sm font-semibold text-charcoal md:col-span-2">
+                  Notes
+                  <textarea
+                    rows={3}
+                    className="mt-2 w-full rounded-2xl border border-mist px-3 py-2 text-sm"
+                    value={editorState.addForm.notes}
+                    onChange={(event) =>
+                      dispatch({
+                        type: "updateAddForm",
+                        field: "notes",
+                        value: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-charcoal/70">
+                <span>
+                  Utilisation projetée:{" "}
+                  <strong className="text-charcoal">{addPercent}%</strong>
+                </span>
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full border border-mist px-4 py-2 text-sm text-charcoal/70"
+                    onClick={() => dispatch({ type: "toggleAddForm", open: false })}
+                  >
+                    <X className="h-4 w-4" />
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white"
+                    onClick={() => dispatch({ type: "addCategory" })}
+                  >
+                    <Check className="h-4 w-4" />
+                    Enregistrer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mt-5 overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
@@ -209,37 +656,112 @@ export default function BudgetManagementPage() {
                   <th className="py-3 font-medium">Responsable</th>
                   <th className="py-3 font-medium">Alloué</th>
                   <th className="py-3 font-medium">Utilisé</th>
-                  <th className="py-3 font-medium">
-                    Taux
-                  </th>
+                  <th className="py-3 font-medium">Taux</th>
+                  {isDraftPlan && (
+                    <th className="py-3 text-right font-medium">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {activePlan.categories.map((category) => {
-                  const progress = category.allocated
-                    ? Math.min(
-                        Math.round((category.utilized / category.allocated) * 100),
-                        200
-                      )
-                    : 0;
+                {categories.map((category) => {
+                  const isEditingRow =
+                    editorState.editingDraft?.id === category.id;
+                  const progress = calculatePercentage(
+                    category.utilized,
+                    category.allocated
+                  );
+
                   return (
                     <tr key={category.id} className="border-t border-mist/60">
                       <td className="py-4">
-                        <p className="font-semibold text-charcoal">
-                          {category.label}
-                        </p>
-                        {category.notes && (
-                          <p className="text-xs text-charcoal/60">
-                            {category.notes}
-                          </p>
+                        {isEditingRow ? (
+                          <input
+                            className="w-full rounded-2xl border border-mist px-3 py-2 text-sm font-semibold text-charcoal"
+                            value={editorState.editingDraft?.label ?? ""}
+                            onChange={(event) =>
+                              dispatch({
+                                type: "updateEditingField",
+                                field: "label",
+                                value: event.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          <div>
+                            <p className="font-semibold text-charcoal">
+                              {category.label}
+                            </p>
+                            {category.notes && (
+                              <p className="text-xs text-charcoal/60">
+                                {category.notes}
+                              </p>
+                            )}
+                          </div>
                         )}
                       </td>
-                      <td className="py-4 text-charcoal/70">{category.owner}</td>
                       <td className="py-4 text-charcoal/70">
-                        {formatCurrency(category.allocated, activePlan.currency)}
+                        {isEditingRow ? (
+                          <input
+                            className="w-full rounded-2xl border border-mist px-3 py-2 text-sm"
+                            value={editorState.editingDraft?.owner ?? ""}
+                            onChange={(event) =>
+                              dispatch({
+                                type: "updateEditingField",
+                                field: "owner",
+                                value: event.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          category.owner
+                        )}
                       </td>
                       <td className="py-4 text-charcoal/70">
-                        {formatCurrency(category.utilized, activePlan.currency)}
+                        {isEditingRow ? (
+                          <input
+                            type="number"
+                            min={0}
+                            className="w-full rounded-2xl border border-mist px-3 py-2 text-sm"
+                            value={editorState.editingDraft?.allocated ?? ""}
+                            onChange={(event) =>
+                              dispatch({
+                                type: "updateEditingField",
+                                field: "allocated",
+                                value: event.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          `${category.allocated.toLocaleString("fr-FR")} ${
+                            activePlan.currency
+                          }`
+                        )}
+                      </td>
+                      <td className="py-4 text-charcoal/70">
+                        {isEditingRow ? (
+                          <div>
+                            <input
+                              type="number"
+                              min={0}
+                              className="w-full rounded-2xl border border-mist px-3 py-2 text-sm"
+                              value={editorState.editingDraft?.utilized ?? ""}
+                              onChange={(event) =>
+                                dispatch({
+                                  type: "updateEditingField",
+                                  field: "utilized",
+                                  value: event.target.value,
+                                })
+                              }
+                            />
+                            <p className="mt-1 text-xs text-charcoal/60">
+                              Utilisation: <strong>{editingPercent}%</strong>
+                            </p>
+                          </div>
+                        ) : (
+                          `${category.utilized.toLocaleString("fr-FR")} ${
+                            activePlan.currency
+                          }`
+                        )}
                       </td>
                       <td className="py-4">
                         <div className="text-right font-semibold text-ocean">
@@ -252,6 +774,57 @@ export default function BudgetManagementPage() {
                           />
                         </div>
                       </td>
+                      {isDraftPlan && (
+                        <td className="py-4">
+                          {isEditingRow ? (
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 rounded-full bg-teal px-3 py-1 text-xs font-semibold text-white"
+                                onClick={() => dispatch({ type: "saveEdit" })}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                Enregistrer
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 rounded-full border border-mist px-3 py-1 text-xs text-charcoal/70"
+                                onClick={() => dispatch({ type: "cancelEdit" })}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                                Annuler
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                className="rounded-full border border-mist p-2 text-charcoal/70 transition hover:border-teal hover:text-teal"
+                                onClick={() =>
+                                  dispatch({
+                                    type: "startEdit",
+                                    categoryId: category.id,
+                                  })
+                                }
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-full border border-rose-200 p-2 text-rose-500 transition hover:bg-rose-50"
+                                onClick={() =>
+                                  dispatch({
+                                    type: "deleteCategory",
+                                    categoryId: category.id,
+                                  })
+                                }
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -372,13 +945,15 @@ export default function BudgetManagementPage() {
                     <div>
                       <p className="text-charcoal/50">Engagé</p>
                       <p className="font-semibold text-charcoal">
-                        {formatCurrency(entry.committed, activePlan.currency)}
+                        {entry.committed.toLocaleString("fr-FR")}{" "}
+                        {activePlan.currency}
                       </p>
                     </div>
                     <div>
                       <p className="text-charcoal/50">Décaissé</p>
                       <p className="font-semibold text-charcoal">
-                        {formatCurrency(entry.disbursed, activePlan.currency)}
+                        {entry.disbursed.toLocaleString("fr-FR")}{" "}
+                        {activePlan.currency}
                       </p>
                     </div>
                   </div>

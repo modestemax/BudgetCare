@@ -1,6 +1,69 @@
 import type { BudgetPlan, ExecutionEntry, PlanRevision } from "../types/entities";
 
+const nowIso = new Date().toISOString();
+
 export const budgetPlans: BudgetPlan[] = [
+  {
+    id: "plan-2026-draft",
+    organizationId: "ngo-001",
+    name: "Plan de contingence 2026",
+    owner: "Cellule Stratégie",
+    fiscalPeriod: {
+      start: "2026-01-01",
+      end: "2026-12-31",
+    },
+    totalBudget: 98000000,
+    currency: "XAF",
+    status: "draft",
+    categories: [
+      {
+        id: "draft-rapid-response",
+        label: "Réponse rapide",
+        owner: "Clarisse Ebode",
+        allocated: 22000000,
+        utilized: 4000000,
+        notes: "Fonds pour déploiements urgents (santé + logistique)",
+      },
+      {
+        id: "draft-education-bridge",
+        label: "Pont éducatif",
+        owner: "Agnès Mbarga",
+        allocated: 26000000,
+        utilized: 6000000,
+        notes: "Maintien des classes communautaires en cas de gel bailleur",
+      },
+      {
+        id: "draft-compliance",
+        label: "Conformité & systèmes",
+        owner: "Service Finance",
+        allocated: 18000000,
+        utilized: 2500000,
+        notes: "Audit flash, renforcement outils internes",
+      },
+      {
+        id: "draft-supply-chain",
+        label: "Chaîne d approvisionnement",
+        owner: "Eric Nganou",
+        allocated: 18000000,
+        utilized: 3000000,
+        notes: "Stocks pharmaceutiques + carburant cliniques mobiles",
+      },
+      {
+        id: "draft-reserve",
+        label: "Réserve stratégique",
+        owner: "Comité Budget",
+        allocated: 14000000,
+        utilized: 0,
+        notes: "Activée uniquement si seuil de trésorerie atteint",
+      },
+    ],
+    objectives: [
+      "Garantir 3 mois d opérations critiques en cas de crise",
+      "Préserver une réserve stratégique pour appels d offres 2026",
+      "Aligner les postes sur les nouveaux risques climatiques",
+    ],
+    updatedAt: nowIso,
+  },
   {
     id: "plan-2025",
     organizationId: "ngo-001",
@@ -150,6 +213,19 @@ export const planRevisions: PlanRevision[] = [
     ],
   },
 ];
+
+export function getBudgetPlanById(planId: string) {
+  return budgetPlans.find((plan) => plan.id === planId);
+}
+
+export function createEditableCategories(planId: string) {
+  const plan = getBudgetPlanById(planId);
+  if (!plan) {
+    return [];
+  }
+
+  return plan.categories.map((category) => ({ ...category }));
+}
 
 export const executionEntries: ExecutionEntry[] = [
   {
