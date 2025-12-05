@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Bell,
+  ClipboardList,
   LineChart,
   LogOut,
   Menu,
@@ -26,6 +27,7 @@ import {
 const navItems = [
   { label: "Vue d ensemble", href: "/app", icon: LineChart },
   { label: "Onboarding", href: "/onboarding", icon: Wallet },
+  { label: "Gestion budgets", href: "/app/budgets", icon: ClipboardList },
 ];
 
 export default function DashboardPage() {

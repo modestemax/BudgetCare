@@ -3,6 +3,7 @@ import LandingPage from "./pages/LandingPage";
 import OnboardingWizard from "./features/onboarding/OnboardingWizard";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
+import BudgetManagementPage from "./pages/BudgetManagementPage";
 import { ProtectedRoute } from "./features/auth/AuthContext";
 
 function App() {
@@ -17,6 +18,14 @@ function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/budgets"
+          element={
+            <ProtectedRoute>
+              <BudgetManagementPage />
             </ProtectedRoute>
           }
         />

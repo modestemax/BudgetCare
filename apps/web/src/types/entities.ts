@@ -72,3 +72,67 @@ export interface User {
   email: string;
   organizationId: string;
 }
+
+/**
+ * Budget allocation bucket within a plan
+ */
+export interface BudgetPlanCategory {
+  id: string;
+  label: string;
+  owner: string;
+  allocated: number;
+  utilized: number;
+  notes?: string;
+}
+
+/**
+ * Annual or seasonal budget planning artifact
+ */
+export interface BudgetPlan {
+  id: string;
+  organizationId: string;
+  name: string;
+  owner: string;
+  fiscalPeriod: {
+    start: string;
+    end: string;
+  };
+  totalBudget: number;
+  currency: CurrencyCode;
+  status: "draft" | "validated" | "reforecast";
+  categories: BudgetPlanCategory[];
+  objectives: string[];
+  updatedAt: string;
+}
+
+/**
+ * Logged adjustment applied to a plan
+ */
+export interface PlanRevision {
+  id: string;
+  planId: string;
+  date: string;
+  author: string;
+  type: "adjustment" | "donor-request" | "risk-mitigation";
+  summary: string;
+  impacts: {
+    category: string;
+    delta: number;
+    narrative: string;
+  }[];
+}
+
+/**
+ * Snapshot of execution compared to the plan
+ */
+export interface ExecutionEntry {
+  id: string;
+  planId: string;
+  period: string;
+  committed: number;
+  disbursed: number;
+  completionRate: number;
+  riskLevel: "low" | "medium" | "high";
+  highlight: string;
+  blocker?: string;
+}
