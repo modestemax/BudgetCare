@@ -1,47 +1,63 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { type ChangeEvent, useEffect, useState } from "react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../features/auth/AuthContext";
 
-const MOCK_API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5001";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginPage() {
   const [email, setEmail] = useState("finance@solidcam.org");
   const [password, setPassword] = useState("BudgetCare!23");
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
+  const {
+    login,
+    status: authStatus,
+    error,
+    clearError,
+    isAuthenticated,
+  } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const from =
+    (location.state as { from?: string } | null)?.from ?? "/app";
+
+  useEffect(() => {
+    return () => {
+      clearError();
+    };
+  }, [clearError]);
 
   const isValid = emailRegex.test(email) && password.length >= 8;
+  const isSubmitting = authStatus === "loading";
+
+  function handleEmailChange(event: ChangeEvent<HTMLInputElement>) {
+    if (error) {
+      clearError();
+    }
+    setEmail(event.target.value);
+  }
+
+  function handlePasswordChange(event: ChangeEvent<HTMLInputElement>) {
+    if (error) {
+      clearError();
+    }
+    setPassword(event.target.value);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isValid || status === "loading") {
+    if (!isValid || isSubmitting) {
       return;
     }
 
-    setStatus("loading");
-    setError(null);
-
-    try {
-      const response = await fetch(`${MOCK_API_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Identifiants invalides");
-      }
-
-      setStatus("success");
-      // AuthContext will handle storing the session and redirecting to /app
-      // during the upcoming tasks.
-    } catch (err) {
-      setStatus("idle");
-      setError((err as Error).message ?? "Une erreur est survenue.");
+    const success = await login(email, password);
+    if (success) {
+      navigate(from, { replace: true });
     }
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to={from} replace />;
   }
 
   return (
@@ -64,7 +80,7 @@ export default function LoginPage() {
               type="email"
               className="rounded-2xl border border-mist bg-white px-4 py-3 focus:border-teal focus:outline-none"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={handleEmailChange}
               required
             />
           </label>
@@ -75,7 +91,7 @@ export default function LoginPage() {
               type="password"
               className="rounded-2xl border border-mist bg-white px-4 py-3 focus:border-teal focus:outline-none"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={handlePasswordChange}
               minLength={8}
               required
             />
@@ -92,14 +108,14 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={!isValid || status === "loading"}
+            disabled={!isValid || isSubmitting}
             className={`w-full rounded-full px-4 py-3 font-semibold text-white transition ${
-              isValid && status !== "loading"
+              isValid && !isSubmitting
                 ? "bg-teal shadow-card hover:translate-y-0.5"
                 : "cursor-not-allowed bg-mist text-charcoal/40"
             }`}
           >
-            {status === "loading" ? "Connexion..." : "Se connecter"}
+            {isSubmitting ? "Connexion..." : "Se connecter"}
           </button>
         </form>
 
