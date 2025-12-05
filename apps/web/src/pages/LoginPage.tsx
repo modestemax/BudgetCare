@@ -81,6 +81,7 @@ export default function LoginPage() {
               className="rounded-2xl border border-mist bg-white px-4 py-3 focus:border-teal focus:outline-none"
               value={email}
               onChange={handleEmailChange}
+              placeholder="finance@solidcam.org"
               required
             />
           </label>
@@ -92,6 +93,7 @@ export default function LoginPage() {
               className="rounded-2xl border border-mist bg-white px-4 py-3 focus:border-teal focus:outline-none"
               value={password}
               onChange={handlePasswordChange}
+              placeholder="••••••••"
               minLength={8}
               required
             />
@@ -125,7 +127,7 @@ export default function LoginPage() {
             to="/onboarding"
             className="font-semibold text-teal underline-offset-2 hover:underline"
           >
-            Démarrer l onboarding
+            Démarrer l'onboarding
           </Link>
         </div>
       </div>
