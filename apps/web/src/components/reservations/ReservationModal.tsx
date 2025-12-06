@@ -9,6 +9,7 @@ import {
   createReservation,
   calculateAvailableAmount,
 } from "../../services/reservationService";
+import { parseAmount } from "../../utils/parseAmount";
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -262,12 +263,4 @@ export default function ReservationModal({
       </div>
     </div>
   );
-}
-
-// Helper function to parse amount (should match the one in service)
-function parseAmount(value: string): number {
-  if (value.trim() === "") {
-    return 0;
-  }
-  return Number(value.replace(/\s/g, ""));
 }

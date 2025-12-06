@@ -22,6 +22,7 @@ import {
 } from "../data/budgetPlans";
 import type { BudgetPlan, BudgetPlanCategory } from "../types/entities";
 import ReservationModal from "../components/reservations/ReservationModal";
+import { parseAmount } from "../utils/parseAmount";
 
 const statusTokens: Record<
   BudgetPlan["status"],
@@ -228,12 +229,6 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
   }
 }
 
-function parseAmount(value: string) {
-  if (value.trim() === "") {
-    return NaN;
-  }
-  return Number(value.replace(/\s/g, ""));
-}
 
 function sanitizeNotes(value: string) {
   const trimmed = value.trim();

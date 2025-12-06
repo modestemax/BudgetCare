@@ -6,6 +6,7 @@ import type {
   ReservationSummary,
 } from "../types/entities";
 import { budgetPlans } from "../data/budgetPlans";
+import { parseAmount } from "../utils/parseAmount";
 
 // Mock data for reservations
 let reservations: Reservation[] = [
@@ -275,16 +276,6 @@ export function getAllReservations(): Reservation[] {
   return [...reservations];
 }
 
-/**
- * Parse amount string to number
- */
-function parseAmount(value: string): number {
-  if (value.trim() === "") {
-    return NaN;
-  }
-  // Remove spaces and parse
-  return Number(value.replace(/\s/g, ""));
-}
 
 /**
  * Export reservations to CSV format
