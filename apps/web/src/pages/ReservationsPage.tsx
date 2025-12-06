@@ -220,8 +220,8 @@ export default function ReservationsPage() {
 
         {/* Filters */}
         <section className="rounded-3xl border border-mist bg-white p-6 shadow-card">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-wrap items-end gap-4">
               {/* Plan selector */}
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wide text-charcoal/60">
