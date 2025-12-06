@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import BudgetManagementPage from "./pages/BudgetManagementPage";
 import ReservationsPage from "./pages/ReservationsPage";
 import { ProtectedRoute } from "./features/auth/AuthContext";
+import AppLayout from "./components/AppLayout";
 
 function App() {
   return (
@@ -18,7 +19,9 @@ function App() {
           path="/app"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <AppLayout>
+                <DashboardPage />
+              </AppLayout>
             </ProtectedRoute>
           }
         />
@@ -26,7 +29,9 @@ function App() {
           path="/app/budgets"
           element={
             <ProtectedRoute>
-              <BudgetManagementPage />
+              <AppLayout>
+                <BudgetManagementPage />
+              </AppLayout>
             </ProtectedRoute>
           }
         />
@@ -34,7 +39,9 @@ function App() {
           path="/app/reservations"
           element={
             <ProtectedRoute>
-              <ReservationsPage />
+              <AppLayout>
+                <ReservationsPage />
+              </AppLayout>
             </ProtectedRoute>
           }
         />

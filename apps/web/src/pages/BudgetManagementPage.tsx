@@ -393,8 +393,7 @@ export default function BudgetManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-mist py-10">
-      <div className="mx-auto max-w-7xl space-y-8 px-6">
+    <>
         <header className="rounded-3xl bg-gradient-to-r from-[#0F3D5C] to-[#1BA8A4] p-8 text-white shadow-card">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="space-y-3">
@@ -1048,7 +1047,6 @@ export default function BudgetManagementPage() {
             currentUser="Utilisateur Test" // In real app, would come from auth context
           />
         )}
-      </div>
-    </div>
+    </>
   );
 }
