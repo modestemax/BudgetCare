@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   Bell,
   ClipboardList,
+  CreditCard,
   LineChart,
   LogOut,
   Menu,
@@ -28,6 +29,7 @@ const navItems = [
   { label: "Vue d ensemble", href: "/app", icon: LineChart },
   { label: "Onboarding", href: "/onboarding", icon: Wallet },
   { label: "Gestion budgets", href: "/app/budgets", icon: ClipboardList },
+  { label: "Réservations crédits", href: "/app/reservations", icon: CreditCard },
 ];
 
 export default function DashboardPage() {

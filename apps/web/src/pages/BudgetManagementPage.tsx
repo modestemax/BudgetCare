@@ -12,6 +12,7 @@ import {
   Trash2,
   Wallet,
   X,
+  CreditCard,
 } from "lucide-react";
 import {
   budgetPlans,
@@ -20,6 +21,7 @@ import {
   planRevisions,
 } from "../data/budgetPlans";
 import type { BudgetPlan, BudgetPlanCategory } from "../types/entities";
+import ReservationModal from "../components/reservations/ReservationModal";
 
 const statusTokens: Record<
   BudgetPlan["status"],
@@ -144,6 +146,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         owner: state.addForm.owner.trim(),
         allocated,
         utilized,
+        reserved: 0,
         notes: sanitizeNotes(state.addForm.notes),
       };
 
@@ -285,6 +288,7 @@ function convertDraftToCategory(draft: EditingDraft): BudgetPlanCategory {
     allocated: parseAmount(draft.allocated),
     utilized:
       draft.utilized.trim() === "" ? 0 : parseAmount(draft.utilized.trim()),
+    reserved: 0, // For now, editing doesn't change reserved
     notes: sanitizeNotes(draft.notes),
   };
 }
@@ -304,6 +308,8 @@ export default function BudgetManagementPage() {
     initialPlanId,
     (planId) => buildInitialEditorState(planId)
   );
+  const [showReservationModal, setShowReservationModal] = useState(false);
+  const [selectedCategoryForReservation, setSelectedCategoryForReservation] = useState<BudgetPlanCategory | undefined>();
 
   const activePlan =
     useMemo(
@@ -351,10 +357,15 @@ export default function BudgetManagementPage() {
     (sum, category) => sum + category.utilized,
     0
   );
+  const totalReserved = categories.reduce(
+    (sum, category) => sum + category.reserved,
+    0
+  );
+  const totalCommitted = totalUtilized + totalReserved;
   const utilizationRate = activePlan.totalBudget
-    ? totalUtilized / activePlan.totalBudget
+    ? totalCommitted / activePlan.totalBudget
     : 0;
-  const reserve = Math.max(activePlan.totalBudget - totalUtilized, 0);
+  const reserve = Math.max(activePlan.totalBudget - totalCommitted, 0);
   const isDraftPlan = activePlan.status === "draft";
   const editingPercent = editorState.editingDraft
     ? calculatePercentage(
@@ -370,6 +381,16 @@ export default function BudgetManagementPage() {
       : 0,
     parseAmount(editorState.addForm.allocated)
   );
+
+  const handleCreateReservation = (category?: BudgetPlanCategory) => {
+    setSelectedCategoryForReservation(category);
+    setShowReservationModal(true);
+  };
+
+  const handleReservationCreated = () => {
+    // Refresh the page data when a reservation is created
+    window.location.reload();
+  };
 
   return (
     <div className="min-h-screen bg-mist py-10">
@@ -441,7 +462,7 @@ export default function BudgetManagementPage() {
             </p>
             <div className="mt-4">
               <p className="text-xs uppercase text-charcoal/50">
-                Taux de consommation
+                Taux d'engagement
               </p>
               <div className="mt-2 h-2 w-full rounded-full bg-mist">
                 <div
@@ -450,8 +471,8 @@ export default function BudgetManagementPage() {
                 />
               </div>
               <p className="mt-2 text-sm text-charcoal/70">
-                {Math.round(utilizationRate * 100)}% utilisé |{" "}
-                {totalUtilized.toLocaleString("fr-FR")} {activePlan.currency}
+                {Math.round(utilizationRate * 100)}% engagé |{" "}
+                {totalCommitted.toLocaleString("fr-FR")} {activePlan.currency}
               </p>
             </div>
           </article>
@@ -509,18 +530,38 @@ export default function BudgetManagementPage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {isDraftPlan ? (
-                <button
-                  type="button"
-                  onClick={() => dispatch({ type: "toggleAddForm" })}
-                  className="inline-flex items-center gap-2 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-ocean"
-                >
-                  <Plus className="h-4 w-4" />
-                  Ajouter une ligne
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: "toggleAddForm" })}
+                    className="inline-flex items-center gap-2 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-ocean"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Ajouter une ligne
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateReservation()}
+                    className="inline-flex items-center gap-2 rounded-full border border-teal bg-teal/10 px-4 py-2 text-sm font-semibold text-teal transition hover:bg-teal hover:text-white"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Nouvelle réservation
+                  </button>
+                </div>
               ) : (
-                <div className="flex items-center gap-2 rounded-full bg-mist/60 px-4 py-2 text-xs font-medium text-charcoal/70">
-                  <Info className="h-4 w-4 text-teal" />
-                  Édition disponible uniquement pour un plan brouillon.
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-full bg-mist/60 px-4 py-2 text-xs font-medium text-charcoal/70">
+                    <Info className="h-4 w-4 text-teal" />
+                    Édition disponible uniquement pour un plan brouillon.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateReservation()}
+                    className="inline-flex items-center gap-2 rounded-full border border-teal bg-teal/10 px-4 py-2 text-sm font-semibold text-teal transition hover:bg-teal hover:text-white"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Gérer les réservations
+                  </button>
                 </div>
               )}
               <p className="text-sm text-charcoal/60">
@@ -656,6 +697,7 @@ export default function BudgetManagementPage() {
                   <th className="py-3 font-medium">Responsable</th>
                   <th className="py-3 font-medium">Alloué</th>
                   <th className="py-3 font-medium">Utilisé</th>
+                  <th className="py-3 font-medium">Réservé</th>
                   <th className="py-3 font-medium">Taux</th>
                   {isDraftPlan && (
                     <th className="py-3 text-right font-medium">Actions</th>
@@ -667,7 +709,7 @@ export default function BudgetManagementPage() {
                   const isEditingRow =
                     editorState.editingDraft?.id === category.id;
                   const progress = calculatePercentage(
-                    category.utilized,
+                    category.utilized + category.reserved,
                     category.allocated
                   );
 
@@ -763,6 +805,11 @@ export default function BudgetManagementPage() {
                           }`
                         )}
                       </td>
+                      <td className="py-4 text-charcoal/70">
+                        {`${category.reserved.toLocaleString("fr-FR")} ${
+                          activePlan.currency
+                        }`}
+                      </td>
                       <td className="py-4">
                         <div className="text-right font-semibold text-ocean">
                           {progress}%
@@ -808,6 +855,14 @@ export default function BudgetManagementPage() {
                                 }
                               >
                                 <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCreateReservation(category)}
+                                className="rounded-full border border-teal/50 bg-teal/10 p-2 text-teal transition hover:bg-teal hover:text-white"
+                                title="Créer une réservation pour cette catégorie"
+                              >
+                                <CreditCard className="h-4 w-4" />
                               </button>
                               <button
                                 type="button"
@@ -978,6 +1033,21 @@ export default function BudgetManagementPage() {
             </div>
           </article>
         </section>
+
+        {/* Reservation Modal */}
+        {activePlan && (
+          <ReservationModal
+            isOpen={showReservationModal}
+            onClose={() => {
+              setShowReservationModal(false);
+              setSelectedCategoryForReservation(undefined);
+            }}
+            plan={activePlan}
+            category={selectedCategoryForReservation}
+            onReservationCreated={handleReservationCreated}
+            currentUser="Utilisateur Test" // In real app, would come from auth context
+          />
+        )}
       </div>
     </div>
   );

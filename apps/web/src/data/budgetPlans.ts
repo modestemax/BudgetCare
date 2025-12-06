@@ -22,6 +22,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Clarisse Ebode",
         allocated: 22000000,
         utilized: 4000000,
+        reserved: 2000000,
         notes: "Fonds pour déploiements urgents (santé + logistique)",
       },
       {
@@ -30,6 +31,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Agnès Mbarga",
         allocated: 26000000,
         utilized: 6000000,
+        reserved: 0,
         notes: "Maintien des classes communautaires en cas de gel bailleur",
       },
       {
@@ -38,6 +40,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Service Finance",
         allocated: 18000000,
         utilized: 2500000,
+        reserved: 0,
         notes: "Audit flash, renforcement outils internes",
       },
       {
@@ -46,6 +49,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Eric Nganou",
         allocated: 18000000,
         utilized: 3000000,
+        reserved: 0,
         notes: "Stocks pharmaceutiques + carburant cliniques mobiles",
       },
       {
@@ -54,6 +58,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Comité Budget",
         allocated: 14000000,
         utilized: 0,
+        reserved: 0,
         notes: "Activée uniquement si seuil de trésorerie atteint",
       },
     ],
@@ -83,6 +88,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Agnès Mbarga",
         allocated: 48000000,
         utilized: 32000000,
+        reserved: 5000000,
         notes: "Priorité équipements pédagogiques et bourses",
       },
       {
@@ -91,6 +97,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Eric Nganou",
         allocated: 42000000,
         utilized: 31000000,
+        reserved: 2000000,
         notes: "Opérations cliniques mobiles et stocks pharmaceutiques",
       },
       {
@@ -99,6 +106,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Fanny Essama",
         allocated: 28000000,
         utilized: 9000000,
+        reserved: 1000000,
         notes: "Reboisement zones critiques et kits coopératives",
       },
       {
@@ -107,6 +115,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Service Finance",
         allocated: 32000000,
         utilized: 18000000,
+        reserved: 0,
         notes: "Audit externe, systèmes d'information et contingence",
       },
     ],
@@ -136,6 +145,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Agnès Mbarga",
         allocated: 25000000,
         utilized: 21000000,
+        reserved: 0,
       },
       {
         id: "cat-health-2024",
@@ -143,6 +153,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Eric Nganou",
         allocated: 22000000,
         utilized: 19500000,
+        reserved: 0,
       },
       {
         id: "cat-ops-2024",
@@ -150,6 +161,7 @@ export const budgetPlans: BudgetPlan[] = [
         owner: "Service Finance",
         allocated: 25000000,
         utilized: 20000000,
+        reserved: 0,
         notes: "Renfort logistique S2",
       },
     ],

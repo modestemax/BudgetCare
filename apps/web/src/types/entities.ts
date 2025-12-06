@@ -82,6 +82,7 @@ export interface BudgetPlanCategory {
   owner: string;
   allocated: number;
   utilized: number;
+  reserved: number;
   notes?: string;
 }
 
@@ -135,4 +136,58 @@ export interface ExecutionEntry {
   riskLevel: "low" | "medium" | "high";
   highlight: string;
   blocker?: string;
+}
+
+/**
+ * Credit reservation for planned expenses
+ */
+export interface Reservation {
+  id: string;
+  planId: string;
+  categoryId: string;
+  amount: number;
+  purpose: string;
+  reservedBy: string;
+  reservedDate: string;
+  status: "active" | "utilized" | "cancelled";
+  utilizedDate?: string;
+  cancellationReason?: string;
+  notes?: string;
+}
+
+/**
+ * Form data for creating/editing reservations
+ */
+export interface ReservationFormData {
+  categoryId: string;
+  amount: string;
+  purpose: string;
+  notes?: string;
+}
+
+/**
+ * Form data for converting reservations to expenses
+ */
+export interface ReservationConversionData {
+  transactionType: "expense";
+  vendor: string;
+  date: string;
+  notes?: string;
+}
+
+/**
+ * Form data for cancelling reservations
+ */
+export interface ReservationCancellationData {
+  reason: string;
+}
+
+/**
+ * Summary of reservations for a category
+ */
+export interface ReservationSummary {
+  totalReserved: number;
+  activeReservations: number;
+  utilizedReservations: number;
+  cancelledReservations: number;
 }

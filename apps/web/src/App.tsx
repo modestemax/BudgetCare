@@ -4,6 +4,7 @@ import OnboardingWizard from "./features/onboarding/OnboardingWizard";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import BudgetManagementPage from "./pages/BudgetManagementPage";
+import ReservationsPage from "./pages/ReservationsPage";
 import { ProtectedRoute } from "./features/auth/AuthContext";
 
 function App() {
@@ -26,6 +27,14 @@ function App() {
           element={
             <ProtectedRoute>
               <BudgetManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/reservations"
+          element={
+            <ProtectedRoute>
+              <ReservationsPage />
             </ProtectedRoute>
           }
         />
