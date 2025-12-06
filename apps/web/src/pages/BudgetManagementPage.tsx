@@ -390,8 +390,8 @@ export default function BudgetManagementPage() {
   return (
     <>
         <header className="rounded-3xl bg-gradient-to-r from-[#0F3D5C] to-[#1BA8A4] p-8 text-white shadow-card">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div className="space-y-3">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex-1 min-w-0 space-y-3">
               <p className="text-sm uppercase tracking-[0.3em] text-white/80">
                 Gestion des budgets
               </p>
@@ -410,7 +410,7 @@ export default function BudgetManagementPage() {
                 })}
               </div>
             </div>
-            <div className="w-full max-w-sm rounded-2xl bg-white/95 p-4 text-charcoal shadow-lg">
+            <div className="w-full max-w-sm lg:ml-auto lg:flex-shrink-0 rounded-2xl bg-white/95 p-4 text-charcoal shadow-lg lg:self-start">
               <label className="text-xs font-semibold uppercase tracking-wide text-charcoal/60">
                 Plan suivi
               </label>
